@@ -16,7 +16,7 @@ setup(
     description="将 Markdown 文件转换为 PDF，支持中文、表格、代码块等复杂格式",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/YOUR_USERNAME/markdown-to-pdf-skill",
+    url="https://github.com/limubai360-source/markdown-to-pdf-skill",
     py_modules=["md2pdf"],
     classifiers=[
         "Development Status :: 4 - Beta",

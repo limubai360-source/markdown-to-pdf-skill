@@ -28,7 +28,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YOUR_USERNAME/markdown-to-pdf-skill.git
+git clone https://github.com/limubai360-source/markdown-to-pdf-skill.git
 
 # 安装依赖
 pip install markdown weasyprint
