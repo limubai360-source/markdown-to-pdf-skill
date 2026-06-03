@@ -12,6 +12,8 @@ Markdown to PDF Converter
 import os
 import sys
 import argparse
+import html
+import re
 from pathlib import Path
 from typing import Optional, List
 
@@ -28,18 +30,29 @@ DEFAULT_CSS = '''
 <style>
 body {
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-    font-size: 11pt;
-    line-height: 1.6;
-    margin: 40px;
-    color: #333;
+    font-size: 11.5pt;
+    line-height: 1.7;
+    margin: 0;
+    color: #222;
+    string-set: doc-title attr(data-doc-title);
+}
+
+p {
+    margin: 0 0 0.45em 0;
+    text-indent: 2em;
+    text-align: left;
 }
 
 h1 {
-    color: #1a1a1a;
-    border-bottom: 2px solid #333;
-    padding-bottom: 10px;
+    color: #111;
+    font-size: 20pt;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+    margin: 0 0 1.2em 0;
+    padding-bottom: 0.55em;
+    border-bottom: 2px solid #222;
     page-break-before: always;
-    font-size: 18pt;
 }
 
 h1:first-of-type {
@@ -47,92 +60,128 @@ h1:first-of-type {
 }
 
 h2 {
-    color: #2c3e50;
-    margin-top: 30px;
-    font-size: 14pt;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
+    color: #1f2d3d;
+    font-size: 15pt;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 1.45em 0 0.65em 0;
+    padding: 0 0 0.28em 0.55em;
+    border-left: 4px solid #2f5f9f;
+    border-bottom: 1px solid #e4e8ee;
+    text-indent: 0;
+    page-break-after: avoid;
 }
 
 h3 {
-    color: #34495e;
-    font-size: 12pt;
+    color: #263849;
+    font-size: 12.5pt;
+    font-weight: 700;
+    line-height: 1.4;
+    margin: 1.05em 0 0.35em 0;
+    text-indent: 0;
+    page-break-after: avoid;
 }
 
 h4 {
-    color: #4a5568;
-    font-size: 11pt;
+    color: #374151;
+    font-size: 11.5pt;
+    font-weight: 700;
+    margin: 0.9em 0 0.3em 0;
+    text-indent: 0;
+}
+
+strong {
+    font-weight: 700;
+    color: #111;
+}
+
+ul, ol {
+    margin: 0.35em 0 0.65em 1.65em;
+    padding-left: 0.35em;
+    list-style-position: outside;
+}
+
+li {
+    margin: 0.25em 0;
+    padding-left: 0.1em;
+}
+
+li p {
+    text-indent: 0;
+    margin: 0.1em 0 0.25em 0;
+}
+
+blockquote {
+    margin: 0.75em 0 1em 0;
+    padding: 0.65em 0.9em;
+    color: #4b5563;
+    background: #f7f8fa;
+    border-left: 4px solid #9aa8b6;
+}
+
+blockquote p {
+    text-indent: 0;
+    margin: 0;
 }
 
 table {
     border-collapse: collapse;
     width: 100%;
-    margin: 15px 0;
-    font-size: 9pt;
+    margin: 0.9em 0 1em 0;
+    font-size: 9.5pt;
+    line-height: 1.45;
 }
 
 th, td {
-    border: 1px solid #ddd;
+    border: 1px solid #d9dee7;
     padding: 6px 8px;
     text-align: left;
+    vertical-align: top;
 }
 
 th {
-    background-color: #f5f5f5;
-    font-weight: bold;
+    background: #f2f4f7;
+    font-weight: 700;
 }
 
 tr:nth-child(even) {
-    background-color: #fafafa;
+    background: #fafbfc;
 }
 
 code {
-    background-color: #f4f4f4;
-    padding: 2px 6px;
+    background: #f4f5f7;
+    padding: 1px 5px;
     border-radius: 3px;
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-    font-size: 9pt;
+    font-size: 9.5pt;
 }
 
 pre {
-    background-color: #f8f8f8;
-    padding: 12px;
+    background: #f7f8fa;
+    padding: 10px 12px;
     border-radius: 5px;
+    border: 1px solid #e1e5eb;
     overflow-x: auto;
-    font-size: 8pt;
-    line-height: 1.4;
+    font-size: 8.5pt;
+    line-height: 1.45;
     white-space: pre-wrap;
     word-wrap: break-word;
-    border: 1px solid #e0e0e0;
 }
 
 pre code {
-    background-color: transparent;
+    background: transparent;
     padding: 0;
-}
-
-blockquote {
-    border-left: 4px solid #3498db;
-    margin: 15px 0;
-    padding-left: 15px;
-    color: #666;
-    background-color: #f9f9f9;
-    padding: 10px 15px;
-    border-radius: 0 5px 5px 0;
 }
 
 hr {
     border: none;
-    border-top: 1px solid #ddd;
-    margin: 30px 0;
+    border-top: 1px solid #e4e8ee;
+    margin: 1.4em 0;
 }
 
-ul, ol {
-    padding-left: 20px;
-}
-
-li {
-    margin: 5px 0;
+a {
+    color: #1f5f99;
+    text-decoration: none;
 }
 
 img {
@@ -140,22 +189,26 @@ img {
     height: auto;
 }
 
-a {
-    color: #3498db;
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* 页面设置 */
 @page {
     size: A4;
-    margin: 2cm;
+    margin: 2.45cm 2.05cm 2.2cm 2.05cm;
+    @top-left {
+        content: string(doc-title);
+        font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+        font-size: 8.5pt;
+        color: #777;
+        border-bottom: 1px solid #e6e6e6;
+        padding-bottom: 6px;
+        width: 100%;
+    }
+    @bottom-center {
+        content: counter(page) " / " counter(pages);
+        font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+        font-size: 9pt;
+        color: #666;
+    }
 }
 
-/* 打印优化 */
 @media print {
     h1, h2, h3 {
         page-break-after: avoid;
@@ -169,11 +222,58 @@ a:hover {
 
 
 def get_css(custom_css: Optional[str] = None) -> str:
-    """获取 CSS 样式，支持自定义"""
+    """获取 CSS 样式，支持自定义覆盖。"""
     if custom_css and Path(custom_css).exists():
         with open(custom_css, 'r', encoding='utf-8') as f:
-            return f'<style>{f.read()}</style>'
+            custom = f.read()
+        return f'{DEFAULT_CSS}\n<style>\n{custom}\n</style>'
     return DEFAULT_CSS
+
+
+_ORDERED_ITEM_RE = re.compile(r'^(\s*)\d+\.\s+')
+_HEADING_RE = re.compile(r'^\s*#{1,6}\s+')
+_FENCE_RE = re.compile(r'^\s*(```|~~~)')
+
+
+def normalize_loose_ordered_lists(md_content: str) -> str:
+    """Keep loose ordered-list paragraphs inside the same list.
+
+    Python-Markdown treats a numbered heading followed by an unindented
+    paragraph as a complete one-item list. Business documents often write
+    numbered sections as `1.` + blank line + paragraph, so indent those
+    continuation paragraphs before conversion to preserve 1, 2, 3 numbering.
+    """
+    normalized = []
+    in_ordered_list = False
+    list_indent = ''
+
+    for line in md_content.splitlines():
+        ordered_match = _ORDERED_ITEM_RE.match(line)
+        if ordered_match:
+            in_ordered_list = True
+            list_indent = ordered_match.group(1)
+            normalized.append(line)
+            continue
+
+        if in_ordered_list:
+            stripped = line.strip()
+            if not stripped:
+                normalized.append(line)
+                continue
+
+            if _HEADING_RE.match(line) or _FENCE_RE.match(line):
+                in_ordered_list = False
+                normalized.append(line)
+                continue
+
+            current_indent = len(line) - len(line.lstrip(' '))
+            if current_indent <= len(list_indent):
+                normalized.append(f'{list_indent}    {line.lstrip()}')
+                continue
+
+        normalized.append(line)
+
+    return '\n'.join(normalized)
 
 
 def convert_md_to_pdf(
@@ -212,6 +312,7 @@ def convert_md_to_pdf(
         md_content = f.read()
 
     # 转换为 HTML
+    md_content = normalize_loose_ordered_lists(md_content)
     html_content = markdown.markdown(
         md_content,
         extensions=[
@@ -219,7 +320,6 @@ def convert_md_to_pdf(
             'fenced_code',      # 代码块支持
             'toc',              # 目录支持
             'nl2br',            # 换行转 <br>
-            'sane_lists',       # 更好的列表处理
         ]
     )
 
@@ -228,6 +328,7 @@ def convert_md_to_pdf(
 
     # 文档标题
     doc_title = title or input_path.stem
+    escaped_title = html.escape(doc_title, quote=True)
 
     # 完整的 HTML
     full_html = f'''<!DOCTYPE html>
@@ -235,10 +336,10 @@ def convert_md_to_pdf(
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{doc_title}</title>
+    <title>{escaped_title}</title>
     {css}
 </head>
-<body>
+<body data-doc-title="{escaped_title}">
     {html_content}
 </body>
 </html>
