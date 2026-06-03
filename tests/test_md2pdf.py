@@ -12,7 +12,12 @@ from pathlib import Path
 # 添加父目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from md2pdf import convert_md_to_pdf, batch_convert, get_css
+from md2pdf import (
+    convert_md_to_pdf,
+    batch_convert,
+    get_css,
+    normalize_loose_ordered_lists,
+)
 
 
 class TestMd2Pdf(unittest.TestCase):
@@ -107,6 +112,33 @@ print("Hello")
         self.assertIn('<style>', css)
         self.assertIn('font-family', css)
         self.assertIn('PingFang SC', css)
+        self.assertIn('text-indent: 2em', css)
+        self.assertIn('counter(page) " / " counter(pages)', css)
+
+    def test_get_css_appends_custom_css(self):
+        """测试自定义 CSS 作为默认样式后的覆盖层"""
+        css_file = Path(self.temp_dir) / "custom.css"
+        css_file.write_text("body { color: red; }", encoding='utf-8')
+
+        css = get_css(str(css_file))
+
+        self.assertIn('counter(page) " / " counter(pages)', css)
+        self.assertIn('body { color: red; }', css)
+
+    def test_normalize_loose_ordered_lists(self):
+        """测试松散有序列表保持连续编号"""
+        source = """1. 第一项
+
+第一项正文。
+
+2. 第二项
+
+第二项正文。
+"""
+        normalized = normalize_loose_ordered_lists(source)
+
+        self.assertIn("    第一项正文。", normalized)
+        self.assertIn("2. 第二项", normalized)
 
     def test_chinese_content(self):
         """测试中文内容"""
